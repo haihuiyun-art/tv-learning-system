@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0d47a1">
+<title>电视学习管控 · 家长端</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ========== 首次设置视图 ========== -->
+<section id="view-setup" class="view hidden">
+  <div class="card">
+    <h1>首次设置</h1>
+    <p class="hint">这台电视还没有完成初始化。请输入电视上显示的配对码，并为家长设置一个 6~8 位数字 PIN。之后进入本页面需要输入该 PIN。</p>
+    <form id="form-setup" novalidate>
+      <label class="field">
+        <span class="field-label">配对码（电视屏幕上显示）</span>
+        <input id="setup-pairing" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="例如 6 位数字" required>
+      </label>
+      <label class="field">
+        <span class="field-label">家长 PIN（6~8 位数字）</span>
+        <input id="setup-pin" type="password" inputmode="numeric" pattern="[0-9]{6,8}" minlength="6" maxlength="8" autocomplete="new-password" required>
+      </label>
+      <label class="field">
+        <span class="field-label">再次输入 PIN</span>
+        <input id="setup-pin2" type="password" inputmode="numeric" pattern="[0-9]{6,8}" minlength="6" maxlength="8" autocomplete="new-password" required>
+      </label>
+      <p id="setup-error" class="error" role="alert"></p>
+      <button type="submit" class="btn btn-primary">完成设置</button>
+    </form>
+  </div>
+</section>
+
+<!-- ========== PIN 登录视图 ========== -->
+<section id="view-login" class="view hidden">
+  <div class="card">
+    <h1>家长登录</h1>
+    <p class="hint">设备：<span id="login-device-name">—</span></p>
+    <form id="form-login" novalidate>
+      <label class="field">
+        <span class="field-label">家长 PIN 或恢复码</span>
+        <input id="login-pin" type="password" autocomplete="current-password" placeholder="PIN 或 TV 恢复码" required>
+      </label>
+      <p id="login-error" class="error" role="alert"></p>
+      <button type="submit" class="btn btn-primary">登录</button>
+    </form>
+  </div>
+</section>
+
+<!-- ========== 主界面 ========== -->
+<section id="view-main" class="view hidden">
+  <header class="topbar">
+    <h1 id="main-device-name">学习管控</h1>
+    <button id="btn-logout" class="btn btn-ghost" type="button">退出登录</button>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button type="button" class="tab active" data-tab="status">状态</button>
+    <button type="button" class="tab" data-tab="policy">时间规则</button>
+    <button type="button" class="tab" data-tab="apps">应用</button>
+    <button type="button" class="tab" data-tab="control">控制</button>
+    <button type="button" class="tab" data-tab="security">安全</button>
+    <button type="button" class="tab" data-tab="questions">题库</button>
+    <button type="button" class="tab" data-tab="logs">日志</button>
+  </nav>
+
+  <!-- 状态总览 -->
+  <div class="panel active" id="panel-status">
+    <div class="card">
+      <h2>状态总览</h2>
+      <dl class="stat-list">
+        <div class="stat"><dt>当前状态</dt><dd id="st-state">—</dd></div>
+        <div class="stat"><dt>保护功能</dt><dd id="st-protection">—</dd></div>
+        <div class="stat"><dt>剩余观看时间</dt><dd id="st-remaining">—</dd></div>
+        <div class="stat"><dt>冷却剩余</dt><dd id="st-cooldown">—</dd></div>
+        <div class="stat"><dt>今日已用</dt><dd id="st-daily">—</dd></div>
+        <div class="stat"><dt>题库</dt><dd id="st-questions">—</dd></div>
+        <div class="stat"><dt>管理地址</dt><dd id="st-address" class="mono">—</dd></div>
+      </dl>
+      <p class="hint">每 5 秒自动刷新。</p>
+    </div>
+  </div>
+
+  <!-- 时间规则 -->
+  <div class="panel" id="panel-policy">
+    <div class="card">
+      <h2>时间规则</h2>
+      <p class="hint">修改后需点击“保存规则”才生效。正在编辑时自动刷新不会覆盖您的输入。</p>
+      <p class="hint">保存后，普通观看和冷却周期会按已用时间折算；家长单独解锁增加的时长不随普通规则重算。每日上限、休息间隔和晚间时段会即时参与判断。</p>
+      <form id="form-policy" novalidate>
+        <label class="field">
+          <span class="field-label">每次观看时长（分钟）</span>
+          <input id="p-initial" type="number" inputmode="numeric" min="1" max="180" required>
+          <span class="field-desc">达到时长后需答题解锁下一段。</span>
+        </label>
+        <label class="field">
+          <span class="field-label">答对奖励时长（分钟）</span>
+          <input id="p-reward" type="number" inputmode="numeric" min="1" max="180" required>
+        </label>
+        <label class="field">
+          <span class="field-label">答错冷却时间（分钟）</span>
+          <input id="p-retry" type="number" inputmode="numeric" min="1" max="120" required>
+        </label>
+        <label class="field">
+          <span class="field-label">每日总上限（分钟，0 为不限制）</span>
+          <input id="p-daily" type="number" inputmode="numeric" min="0" max="720" required>
+        </label>
+        <label class="field">
+          <span class="field-label">强制休息间隔（分钟，0 为关闭）</span>
+          <input id="p-break-interval" type="number" inputmode="numeric" min="0" max="180" required>
+        </label>
+        <label class="field">
+          <span class="field-label">每次休息时长（分钟）</span>
+          <input id="p-break-duration" type="number" inputmode="numeric" min="1" max="60" required>
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span class="field-label">安静时段开始</span>
+            <input id="p-quiet-start" type="time" required>
+          </label>
+          <label class="field">
+            <span class="field-label">安静时段结束</span>
+            <input id="p-quiet-end" type="time" required>
+          </label>
+        </div>
+        <p class="hint">安静时段内答题不会恢复观看，家长仍可手动解锁。支持跨零点（如 22:00 ~ 07:00）；起止时间相同表示关闭。</p>
+        <p id="policy-msg" class="msg" role="status"></p>
+        <button type="submit" class="btn btn-primary">保存规则</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 受管应用 -->
+  <div class="panel" id="panel-apps">
+    <div class="card">
+      <h2>受管应用</h2>
+      <p class="hint">被勾选的应用将受到观看时长与答题规则约束。修改勾选后自动保存。</p>
+      <ul id="app-list" class="app-list"></ul>
+      <p id="apps-empty" class="hint hidden">尚未获取到应用列表。</p>
+      <p id="apps-msg" class="msg" role="status"></p>
+    </div>
+  </div>
+
+  <!-- 控制操作 -->
+  <div class="panel" id="panel-control">
+    <div class="card">
+      <h2>控制操作</h2>
+      <div class="control-group">
+        <h3>临时解锁</h3>
+        <div class="control-row">
+          <input id="unlock-minutes" type="number" inputmode="numeric" min="1" max="180" value="10" aria-label="解锁分钟数">
+          <button type="button" class="btn" data-action="unlock">直接解锁 N 分钟</button>
+        </div>
+        <p class="hint">不答题，直接给孩子增加观看时间。</p>
+      </div>
+      <div class="control-group">
+        <h3>答题相关</h3>
+        <button type="button" class="btn" data-action="skip_question">跳过当前题目</button>
+        <button type="button" class="btn" data-action="grant_without_answer">免答奖励一次时长</button>
+      </div>
+      <div class="control-group">
+        <h3>保护开关</h3>
+        <button type="button" class="btn btn-warn" data-action="pause_protection">暂停保护</button>
+        <button type="button" class="btn" data-action="resume_protection">恢复保护</button>
+        <p class="hint">暂停保护期间不做时长与答题限制，请谨慎使用。</p>
+      </div>
+      <p id="control-msg" class="msg" role="status"></p>
+    </div>
+  </div>
+
+  <!-- 家长凭据安全 -->
+  <div class="panel" id="panel-security">
+    <div class="card">
+      <h2>修改家长 PIN</h2>
+      <p class="hint">孩子看到旧 PIN 后，请在这里修改。成功后会同时更换本地恢复码并退出所有网页会话，旧 PIN、旧恢复码和旧会话全部失效。</p>
+      <p class="hint">如果忘记 PIN，可在登录页使用 TV 恢复码登录。新恢复码需要在电视端用新 PIN 验证后查看并离线保存，不要交给孩子。</p>
+      <form id="form-change-pin" novalidate>
+        <label class="field">
+          <span class="field-label">当前 PIN 或恢复码</span>
+          <input id="change-current" type="password" autocomplete="current-password" required>
+        </label>
+        <label class="field">
+          <span class="field-label">新 PIN（6～8 位数字）</span>
+          <input id="change-new" type="password" inputmode="numeric" pattern="[0-9]{6,8}" minlength="6" maxlength="8" autocomplete="new-password" required>
+        </label>
+        <label class="field">
+          <span class="field-label">再次输入新 PIN</span>
+          <input id="change-new2" type="password" inputmode="numeric" pattern="[0-9]{6,8}" minlength="6" maxlength="8" autocomplete="new-password" required>
+        </label>
+        <p id="change-pin-msg" class="msg" role="status"></p>
+        <button id="btn-change-pin" type="submit" class="btn btn-warn">修改 PIN 并轮换恢复码</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- 题库 -->
+  <div class="panel" id="panel-questions">
+    <div class="card">
+      <h2>题库文件</h2>
+      <dl class="stat-list">
+        <div class="stat"><dt>已保存文件</dt><dd id="q-file-count">—</dd></div>
+        <div class="stat"><dt>有效启用文件</dt><dd id="q-enabled-file-count">—</dd></div>
+        <div class="stat"><dt>参与抽题数量</dt><dd id="q-count">—</dd></div>
+        <div class="stat"><dt>全部有效题目</dt><dd id="q-total-count">—</dd></div>
+      </dl>
+      <p class="hint">只有已启用且没有错误的文件参与随机抽题。最多 50 个文件，每文件 500 题，全部文件合计 5000 题。</p>
+      <button type="button" id="btn-refresh-banks" class="btn">刷新文件列表</button>
+      <p id="q-banks-msg" class="msg" role="status"></p>
+      <ul id="bank-list" class="bank-list"></ul>
+      <p id="banks-empty" class="hint hidden">暂无题库文件。删除全部文件后，内置示例不会自动恢复。</p>
+      <div id="q-list-wrap" class="bank-detail hidden">
+        <h3 id="bank-detail-title">题目详情</h3>
+        <p id="bank-detail-meta" class="hint"></p>
+        <ul id="q-list" class="q-list"></ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>添加或更新题库</h2>
+      <p class="hint">每次导入只新增或更新同名称的一份文件，不会清空其他题库。同名更新会保留原来的启用状态；上传前会要求确认。<a href="questions-template.json" download>下载题库格式模板</a>。</p>
+      <label class="field">
+        <span class="field-label">选择一个或多个 .json 文件</span>
+        <input id="import-files" type="file" accept=".json,application/json" multiple>
+        <span class="field-desc">逐个读取并检查，每份文件不能超过 4 MB；文件名将作为题库名称。</span>
+      </label>
+      <button type="button" id="btn-check-files" class="btn">逐个读取并检查文件</button>
+      <p id="file-import-msg" class="msg" role="status"></p>
+      <div id="file-preview-wrap" class="hidden">
+        <ul id="file-import-list" class="file-import-list"></ul>
+        <button type="button" id="btn-upload-files" class="btn btn-primary">逐个上传已预览的文件</button>
+      </div>
+      <div id="file-preview-detail" class="bank-detail hidden">
+        <h3 id="file-preview-title">文件预览</h3>
+        <ul id="file-preview-list" class="q-list"></ul>
+      </div>
+
+      <hr class="section-divider">
+      <h3>粘贴 JSON</h3>
+      <label class="field">
+        <span class="field-label">题库名称（可选）</span>
+        <input id="import-name" type="text" maxlength="80" placeholder="留空则使用 version">
+      </label>
+      <label class="field">
+        <span class="field-label">题库 JSON</span>
+        <textarea id="import-text" rows="8" spellcheck="false" placeholder='{"formatVersion":1,"version":"...","questions":[...]}'></textarea>
+      </label>
+      <button type="button" id="btn-preview" class="btn">本地预览检查</button>
+      <p id="import-msg" class="msg" role="status"></p>
+      <div id="preview-wrap" class="hidden">
+        <h3 id="preview-title">预览（<span id="preview-count">0</span> 题）</h3>
+        <ul id="preview-list" class="q-list"></ul>
+        <button type="button" id="btn-import" class="btn btn-primary">确认添加或更新这一份题库</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>用 AI 帮我出题</h2>
+      <p class="hint">把下面这段提示词复制给任意 AI（如 Kimi、DeepSeek 等），按学科、年级或学习进度分别生成独立 JSON 文件。<strong>AI 可能出错，上传前请务必逐份预览并核对答案与解析。</strong></p>
+      <pre id="ai-prompt" class="prompt-box"></pre>
+      <button type="button" id="btn-copy-prompt" class="btn">复制提示词</button>
+      <p id="copy-msg" class="msg" role="status"></p>
+    </div>
+  </div>
+
+  <!-- 日志 -->
+  <div class="panel" id="panel-logs">
+    <div class="card">
+      <h2>最近日志</h2>
+      <ul id="log-list" class="log-list"></ul>
+      <p id="logs-empty" class="hint hidden">暂无日志。</p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>本页面通过局域网内电视内置服务访问，仅用于家庭内部管理。管控措施可减少但不保证完全阻止绕过行为，请配合日常引导使用。</p>
+  </footer>
+</section>
+
+<div id="loading" class="loading">加载中…</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+{
+  "formatVersion": 1,
+  "version": "内置示例-2026-11-07",
+  "questions": [
+    {
+      "id": "s01",
+      "grade": "一年级",
+      "subject": "数学",
+      "topic": "20以内加法",
+      "difficulty": "简单",
+      "stem": "8 + 7 = ?",
+      "options": ["13", "14", "15", "16"],
+      "answer": 2,
+      "explanation": "8 加 2 等于 10，剩下 5，一共是 15。",
+      "source": "内置示例"
+    },
+    {
+      "id": "s02",
+      "grade": "二年级",
+      "subject": "数学",
+      "topic": "乘法口诀",
+      "difficulty": "简单",
+      "stem": "6 × 9 = ?",
+      "options": ["54", "56", "45", "63"],
+      "answer": 0,
+      "explanation": "六九五十四，所以 6 × 9 = 54。",
+      "source": "内置示例"
+    },
+    {
+      "id": "s03",
+      "grade": "三年级",
+      "subject": "数学",
+      "topic": "周长",
+      "difficulty": "中等",
+      "stem": "一个长方形长 8 厘米、宽 5 厘米，它的周长是多少厘米？",
+      "options": ["13 厘米", "26 厘米", "40 厘米", "21 厘米"],
+      "answer": 1,
+      "explanation": "长方形周长 =（长 + 宽）× 2 =（8 + 5）× 2 = 26 厘米。",
+      "source": "内置示例"
+    },
+    {
+      "id": "s04",
+      "grade": "四年级",
+      "subject": "数学",
+      "topic": "除法",
+      "difficulty": "中等",
+      "stem": "96 ÷ 8 = ?",
+      "options": ["11", "13", "12", "14"],
+      "answer": 2,
+      "explanation": "8 × 12 = 96，所以 96 ÷ 8 = 12。",
+      "source": "内置示例"
+    },
+    {
+      "id": "s05",
+      "grade": "二年级",
+      "subject": "语文",
+      "topic": "古诗",
+      "difficulty": "简单",
+      "stem": "“床前明月光”的下一句是什么？",
+      "options": ["疑是地上霜", "举头望明月", "低头思故乡", "春眠不觉晓"],
+      "answer": 0,
+      "explanation": "李白《静夜思》：床前明月光，疑是地上霜。",
+      "source": "内置示例"
+    },
+    {
+      "id": "s06",
+      "grade": "四年级",
+      "subject": "语文",
+      "topic": "成语",
+      "difficulty": "中等",
+      "stem": "成语“画蛇添足”告诉我们什么道理？",
+      "options": [
+        "做了多余的事，反而把事情弄糟",
+        "画画要认真观察",
+        "做事要齐心协力",
+        "遇到困难要坚持到底"
+      ],
+      "answer": 0,
+      "explanation": "画蛇时给蛇添上脚是多余的，比喻多此一举反而坏事。",
+      "source": "内置示例"
+    },
+    {
+      "id": "s07",
+      "grade": "五年级",
+      "subject": "英语",
+      "topic": "单词",
+      "difficulty": "简单",
+      "stem": "单词 “apple” 的中文意思是什么？",
+      "options": ["香蕉", "苹果", "橘子", "葡萄"],
+      "answer": 1,
+      "explanation": "apple 的意思是苹果。",
+      "source": "内置示例"
+    },
+    {
+      "id": "s08",
+      "grade": "三年级",
+      "subject": "科学",
+      "topic": "自然常识",
+      "difficulty": "简单",
+      "stem": "植物进行光合作用时，主要吸收空气中的哪种气体？（判断选择）",
+      "options": ["二氧化碳", "氧气"],
+      "answer": 0,
+      "explanation": "植物光合作用吸收二氧化碳、释放氧气。",
+      "source": "内置示例"
+    }
+  ]
+}

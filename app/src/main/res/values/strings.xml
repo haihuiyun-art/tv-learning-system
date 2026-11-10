@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">电视学习系统</string>
+    <string name="notification_channel">学习管控服务</string>
+    <string name="notification_text">观看计时与家长控制正在本机运行</string>
+</resources>
