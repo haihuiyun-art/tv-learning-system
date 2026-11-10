@@ -58,9 +58,25 @@
 - Gradle：8.9，Wrapper 使用腾讯镜像；Gradle 缓存位于 `.tools/gradle-home`。
 - 在 Git Bash 构建前需将 `JAVA_HOME`、`ANDROID_HOME`、`ANDROID_SDK_ROOT` 指向上述目录的 Windows 路径，并将 `GRADLE_USER_HOME` 指向 `.tools/gradle-home`，然后运行 `./gradlew.bat clean lintDebug assembleDebug`。
 
+## Device Owner 实施与版本基线（2026-11-10）
+
+- 已建立本地 Git，基线提交为 `dff6cf6`，没有配置远程仓库或推送。`backups/baseline-d287d324.apk`、`backups/baseline-dff6cf6-source.zip` 和 `backups/SHA256SUMS` 已保存并校验；备份不含 `.tools/`、真实凭据或设备题库。基线源码在提交前重新通过 `clean lintDebug assembleDebug`。
+- 新增 `DeviceControlManager.java`，使用公开 `DevicePolicyManager` API 提供 Device Owner 检测、锁任务、Home 键、持久化默认桌面、防卸载和可回退用户限制。不 Root、不接入 Shizuku、不默认挂起/禁用视频或系统组件。无 Device Owner 或策略失败时保留原有前台监控，状态页区分基础管控与 Device Owner 配置。
+- `HomeActivity`、`LockActivity`、`WatchPolicyService` 和 `DeviceOwnerReceiver` 已接入。限时解锁只退出锁任务；暂停保护撤销本模块的用户限制和防卸载。家长验证后的原桌面/设置采用临时外部授权，返回学习主页恢复。未设置 `DISALLOW_DEBUGGING_FEATURES`，不能宣称防 ADB；Android 9 不把 `DISALLOW_CONFIG_DEFAULT_APPS` 计入已生效能力。
+- 新开发 APK 为 `app/build/outputs/apk/debug/app-debug.apk`，SHA-256：`6363bfbe22494a7ef0b521a02853a76583732519ba87893c911a195b0aa52a0c`。最终源码已通过 `clean lintDebug assembleDebug`。这是开发构建，不是签名发布版。
+- Android 9 标准模拟器普通模式实测：临时 1 分钟规则下受管前台应用自然耗尽额度，Home 到学习主页、返回原答题页、答错进入冷却、冷却结束换题、答对回到受管应用均通过。使用系统时钟应用模拟受管前台，不把该结果扩大为新版真实视频 App 已回归。
+- 同一版本在可丢弃模拟器实际执行 `dpm set-device-owner` 成功，设备管理特性和 Device Owner 身份真实存在；锁任务显示 `LOCKED`，Home 回学习主页和返回原题均保持锁定。最终 APK 实测错答 `s08` 后冷却 58 秒，冷却页 Home/返回正常，换到 `s02` 并答对后为 `watching`、剩余 58 秒，前台回到受管时钟应用，锁任务变为 `NONE`。
+- 家长验证后打开原系统桌面实际到达 `com.android.launcher3`，返回学习主页后策略恢复；家长验证后打开使用统计设置实际到达 `com.android.settings`，临时授权期间限制撤销。网页暂停/恢复保护后，用户限制实际撤销/恢复。系统应用详情中 UNINSTALL、FORCE STOP 为禁用，存储管理入口禁用；只检查状态，没有执行卸载或清除数据。
+- 模拟器正常重启后 Device Owner 和 `locked` 状态保留。启动后停留在受控学习主页，点击继续答题恢复原题 `s01`，锁任务恢复 `LOCKED`；用临时 PIN 横屏本地解锁后回到受管应用，锁任务为 `NONE`。测试 PIN 和临时网页会话没有写入源码，临时会话文件已删除。真实拔电仍未测试。
+- 测试机使用临时 1 分钟观看/奖励/冷却规则，并仅在模拟器关闭晚间时段，没有修改爱普生规则、PIN、恢复码或题库。最终模拟器通过 `adb emu kill` 正常关闭。无窗口启动曾停滞，后续模拟器验证使用可见窗口、项目内 `ANDROID_EMULATOR_HOME` 和只读测试镜像；不强杀残留 QEMU、不清除真实设备数据。本轮两个失败的无窗口启动仍残留测试 QEMU 进程（检查时 PID 35448、31160），普通关闭请求被 Windows 拒绝，未使用 `/F` 强杀；后续可在任务管理器核对项目模拟器路径后手动结束，或通过系统重启释放。
+
 ## 下一步
 
-当前界面版构建为 `d287d32418412a76bbc78e304e1c11308dca893ed5e589c0e1c801d234756171`，2026-11-08 已执行 `clean lintDebug assembleDebug` 并通过，真机 APK 与本地 SHA-256 一致。新版主页、答题、冷却、主题、受控 Home/返回和真实答题恢复均已完成本轮真机验证，应用配置及晚间禁用已恢复。2026-11-10 检查时真机不在 ADB 设备列表中，AI 未发送关机命令，不能记为已远程关机；若家长已手动关机则无需处理。模拟器曾出现残留 QEMU 进程占用镜像且 Windows 未允许直接结束的情况，后续启动前应检查测试进程，优先用 `adb emu kill` 正常退出，不强杀或清除真机数据。可以在已验证设备上开始家庭使用或小范围试点，但不应直接宣传为全设备、绝对防绕过的商用产品。正式商用仍需单独验证设备所有者、防卸载/清除数据/恢复出厂等强管控能力；真实拔电只能由家长物理执行，未实测前不得宣称通过。iOS Safari 已有用户实际使用无异常的反馈，但逐项兼容性验收未记录。覆盖安装后需显式启动主页的问题已有记录，不应视为自动升级已验收。USB 调试当前保留，正式交给孩子使用前建议关闭以降低绕过风险，是否及何时关闭由家长决定。若关键权限不可用，应标记为不支持强管控，不以演示模式替代商用验收。
+当前代码兼容目标仍为 Android 9 及以上（`minSdk 28`），现有主要实测为 Android 9，不能据此宣称 Android 10/11+ 或所有电视盒子已兼容。无 Device Owner 的设备保留现有基础功能；完全缺失设备管理能力的 ROM 不能通过界面微调获得防卸载等强管控能力，应标为基础管控或不支持。
+
+爱普生真机尚未安装本轮 Device Owner 开发 APK，也未激活 Device Owner；本轮没有连接或修改真机。下一步须等设备在线且家长在场，先只读检查 Device Admin、账户/用户和现有管理者，再单独确认激活。激活可能需要移除账户或恢复出厂，不得直接执行。真机还需重新验收锁任务、Home/返回、语音入口、PIN/输入法、防卸载/清除数据、正常重启和真实拔电，不能将模拟器结果写成爱普生已通过。
+
+仍不承诺防 Recovery 恢复出厂、刷机、绝对防绕过或全设备通用。覆盖安装后可能需要显式启动主页，不能视为自动升级已验收。USB 调试当前保留，是否关闭由家长在维护流程明确后决定。iOS Safari 有用户实际使用无异常反馈，但逐项兼容性验收未记录。
 
 ## 验证要求
 

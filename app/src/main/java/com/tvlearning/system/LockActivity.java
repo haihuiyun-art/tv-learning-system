@@ -2,7 +2,6 @@ package com.tvlearning.system;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
@@ -42,6 +41,7 @@ public class LockActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private PolicyEngine engine;
     private PolicyStore store;
+    private DeviceControlManager deviceControl;
     private LinearLayout content;
     private LinearLayout main;
     private String renderedKey = "";
@@ -71,6 +71,7 @@ public class LockActivity extends Activity {
         renderedDark = Ui.isDark(this);
         engine = PolicyEngine.get(this);
         store = PolicyStore.get(this);
+        deviceControl = DeviceControlManager.get(this);
         WatchPolicyService.start(this);
 
         FrameLayout root = new FrameLayout(this);
@@ -106,6 +107,7 @@ public class LockActivity extends Activity {
     private void render(boolean force) {
         PolicyStore.RuntimeState state = store.getRuntime();
         if (!PolicyEngine.isLockedState(state.state)) {
+            leaveLockTask();
             finish();
             return;
         }
@@ -640,6 +642,7 @@ public class LockActivity extends Activity {
             render(true);
             return;
         }
+        leaveLockTask();
         Intent intent = new AppRepository(this).getLaunchIntent(state.lastVideoPackage);
         if (intent != null) {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
@@ -676,16 +679,27 @@ public class LockActivity extends Activity {
             return;
         }
         WatchPolicyService.start(this);
-        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-        if (dpm != null && dpm.isDeviceOwnerApp(getPackageName())) {
+        if (deviceControl.canUseLockTask()
+                && PolicyEngine.isLockedState(store.getRuntime().state)) {
             try {
                 startLockTask();
-            } catch (IllegalStateException ignored) {
-                store.addLog("系统未允许进入锁任务模式");
+            } catch (RuntimeException e) {
+                store.addLog("系统未允许进入锁任务模式：" + e.getClass().getSimpleName());
             }
         }
         handler.removeCallbacks(refresh);
         handler.post(refresh);
+    }
+
+    private void leaveLockTask() {
+        if (!deviceControl.isOwner()) {
+            return;
+        }
+        try {
+            stopLockTask();
+        } catch (RuntimeException e) {
+            store.addLog("锁任务退出失败：" + e.getClass().getSimpleName());
+        }
     }
 
     @Override

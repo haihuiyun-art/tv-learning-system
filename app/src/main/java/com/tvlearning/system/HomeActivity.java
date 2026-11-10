@@ -2,8 +2,6 @@ package com.tvlearning.system;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.admin.DevicePolicyManager;
-import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -41,6 +39,7 @@ import java.util.concurrent.Executors;
 public class HomeActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private AppRepository apps;
+    private DeviceControlManager deviceControl;
     private TextView status;
     private TextView connection;
     private TextView pairing;
@@ -74,9 +73,11 @@ public class HomeActivity extends Activity {
         super.onCreate(savedInstanceState);
         renderedDark = Ui.isDark(this);
         apps = new AppRepository(this);
+        deviceControl = DeviceControlManager.get(this);
         WatchPolicyService.start(this);
         buildInterface();
-        enableLockTaskIfOwner();
+        deviceControl.clearTemporaryAccess();
+        deviceControl.syncProtection();
     }
 
     private void buildInterface() {
@@ -221,11 +222,7 @@ public class HomeActivity extends Activity {
                             Toast.makeText(HomeActivity.this, "当前已是默认桌面，按主页键会回到这里", Toast.LENGTH_LONG).show();
                             return;
                         }
-                        try {
-                            startActivity(new Intent(Settings.ACTION_HOME_SETTINGS));
-                        } catch (ActivityNotFoundException e) {
-                            Toast.makeText(HomeActivity.this, "请按主页键，选择电视学习系统并选择“始终”", Toast.LENGTH_LONG).show();
-                        }
+                        openSettings(Settings.ACTION_HOME_SETTINGS);
                     }
                 });
             }
@@ -441,8 +438,8 @@ public class HomeActivity extends Activity {
     private void updateStatus() {
         PolicyStore store = PolicyStore.get(this);
         PolicyStore.RuntimeState state = store.getRuntime();
-        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-        boolean owner = dpm != null && dpm.isDeviceOwnerApp(getPackageName());
+        boolean owner = deviceControl.isOwner();
+        boolean ownerReady = deviceControl.isProtectionPolicyActive();
         boolean usageGranted = apps.hasUsageAccess();
         boolean defaultHome = isDefaultHome();
         String usage = usageGranted ? "已授权" : "未授权";
@@ -460,10 +457,11 @@ public class HomeActivity extends Activity {
             timeValue.setText("00:00");
         }
         status.setText(String.format(Locale.getDefault(),
-                "Android %s（API %d） · 观看统计：%s · 默认桌面：%s · 设备所有者：%s · 当前状态：%s",
+                "Android %s（API %d） · 观看统计：%s · 默认桌面：%s · 管控模式：%s · 当前状态：%s",
                 android.os.Build.VERSION.RELEASE, android.os.Build.VERSION.SDK_INT,
-                usage, home, owner ? "已启用" : "未启用", stateText(state.state)));
-        status.setVisibility(usageGranted && defaultHome ? View.GONE : View.VISIBLE);
+                usage, home, deviceControl.modeText(), stateText(state.state)));
+        status.setVisibility(usageGranted && defaultHome && (!owner || ownerReady)
+                ? View.GONE : View.VISIBLE);
         connection.setText("手机网页 " + WatchPolicyService.getAddress());
         pairing.setVisibility(store.isConfigured() ? View.GONE : View.VISIBLE);
         if (!store.isConfigured()) {
@@ -590,24 +588,26 @@ public class HomeActivity extends Activity {
         intent.addCategory(Intent.CATEGORY_HOME);
         intent.setComponent(new ComponentName(selected.activityInfo.packageName, selected.activityInfo.name));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        PolicyEngine.get(this).allowOriginalHome(selected.activityInfo.packageName);
+        openTemporaryExternal(intent, "原桌面暂时无法打开");
+    }
+
+    private void openTemporaryExternal(Intent intent, String errorMessage) {
+        ComponentName target = intent.getComponent();
+        if (target == null) {
+            target = intent.resolveActivity(getPackageManager());
+        }
+        if (target == null || !deviceControl.allowTemporaryPackage(target.getPackageName())) {
+            Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+            return;
+        }
+        PolicyEngine.get(this).allowOriginalHome(target.getPackageName());
         try {
             startActivity(intent);
         } catch (RuntimeException e) {
             PolicyEngine.get(this).clearOriginalHomeAccess();
-            Toast.makeText(this, "原桌面暂时无法打开", Toast.LENGTH_LONG).show();
-        }
-    }
-
-    private void enableLockTaskIfOwner() {
-        DevicePolicyManager dpm = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
-        if (dpm != null && dpm.isDeviceOwnerApp(getPackageName())) {
-            try {
-                dpm.setLockTaskPackages(new ComponentName(this, DeviceOwnerReceiver.class),
-                        new String[]{getPackageName()});
-            } catch (SecurityException ignored) {
-                PolicyStore.get(this).addLog("设备所有者锁任务配置未获系统接受");
-            }
+            deviceControl.clearTemporaryAccess();
+            deviceControl.syncProtection();
+            Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -664,11 +664,7 @@ public class HomeActivity extends Activity {
     }
 
     private void openSettings(String action) {
-        try {
-            startActivity(new Intent(action));
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "此固件没有提供所需设置入口", Toast.LENGTH_LONG).show();
-        }
+        openTemporaryExternal(new Intent(action), "此固件没有提供所需设置入口");
     }
 
     @Override
@@ -678,7 +674,9 @@ public class HomeActivity extends Activity {
             recreate();
             return;
         }
+        deviceControl.clearTemporaryAccess();
         PolicyEngine.get(this).clearOriginalHomeAccess();
+        deviceControl.syncProtection();
         WatchPolicyService.start(this);
         updateAppList();
         handler.removeCallbacks(refresh);

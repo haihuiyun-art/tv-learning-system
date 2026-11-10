@@ -10,7 +10,7 @@
 
 - 使用本地存储和同一局域网内的家长网页，不依赖云端。
 - 通过全屏界面覆盖第三方视频应用，不直接控制其内部播放器。
-- 不承诺阻止所有系统入口，也不承诺普通应用具备防卸载、防清除数据、防恢复出厂能力。
+- 普通模式不承诺阻止所有系统入口，也不承诺防卸载、防清除数据、防恢复出厂；Device Owner 管控需单独授权并按机型验收。
 - 不限制孩子使用另一台设备查答案。
 - 首台验证设备为 Android 9、API 28、ARMv7 的爱普生 CH-TW5700TX 内置智能系统。
 
@@ -42,7 +42,8 @@ flowchart LR
         Server[LocalControlServer\n局域网 HTTP / 会话 / CSRF]
         Hash[PasswordHasher\nPIN / 恢复码 / 随机会话]
         Boot[BootReceiver\n开机恢复]
-        Owner[DeviceOwnerReceiver\n可选设备管理入口]
+        Owner[DeviceOwnerReceiver\n设备管理回调]
+        Control[DeviceControlManager\n可选强管控 / 普通模式回退]
     end
 
     Web -->|HTTP 8787| Server
@@ -60,7 +61,10 @@ flowchart LR
     Engine --> Bank
     Store --> Hash
     Boot --> Service
-    Owner -.可选能力，当前未启用.-> Home
+    Owner --> Control
+    Home --> Control
+    Lock --> Control
+    Service --> Control
 ```
 
 ## 4. 核心模块
@@ -70,6 +74,7 @@ flowchart LR
 | `HomeActivity.java` | 学习主页、受管应用入口、设备能力展示、家长验证、恢复码展示、原系统桌面授权 |
 | `LockActivity.java` | 答题、答案反馈、家长本地解锁，以及冷却、休息、晚间禁用、每日上限界面 |
 | `WatchPolicyService.java` | 前台服务、每秒监控、锁定界面恢复、未经授权桌面收回、屏幕开关广播、局域网服务托管 |
+| `DeviceControlManager.java` | Device Owner 检测、锁任务、默认桌面、防卸载、可回退用户限制、家长临时外部入口；失败时保留普通管控 |
 | `PolicyEngine.java` | 观看计时、状态转换、答题判断、家长控制、规则修改后的当前周期折算 |
 | `PolicyStore.java` | SharedPreferences 持久化、时间规则、应用开关、PIN/恢复码、初始化、日志 |
 | `QuestionBank.java` | 题库解析、校验、多文件合并抽题、旧版迁移、原子写入、损坏隔离与恢复 |
@@ -78,7 +83,7 @@ flowchart LR
 | `PasswordHasher.java` | 随机盐、PBKDF2 哈希、配对码、恢复码、会话和 CSRF 随机令牌 |
 | `Ui.java` | 浅色/深色主题及本地持久化、设备密度适配、按钮、输入框、焦点边框和公共界面样式 |
 | `BootReceiver.java` | 正常开机或厂商快速开机后启动前台服务 |
-| `DeviceOwnerReceiver.java` | 设备管理器声明入口；当前设备没有启用设备所有者 |
+| `DeviceOwnerReceiver.java` | 设备管理启用、锁任务进入/退出回调及服务恢复；爱普生真机尚未启用 Device Owner |
 
 ## 5. 页面与交互范围
 
@@ -223,8 +228,13 @@ flowchart LR
 - 开机广播恢复服务，持久化状态决定恢复观看、答题或等待界面。
 - 覆盖安装后可能需要显式打开一次主页，不能把当前流程当成已完成自动升级验收。
 - 默认桌面、使用统计权限和语音入口因厂商固件而异，应逐台检测。
-- 设备所有者、Root、恢复出厂和禁用原系统组件不属于当前默认部署方式。
-- 当前真机为管控需要停用了第三方 Aerial 桌面，但未 Root、未卸载，保留了恢复方式；这不代表其他设备也需要相同处理。
+- 未启用 Device Owner 时，保留原有前台监控、答题和家长控制。Device Owner 只能通过 ADB 或官方配置流程授权，应用不能自行提权。
+- 已启用且保护开启时，`DeviceControlManager` 配置锁任务白名单、Home 键、持久化默认桌面、本应用防卸载及可回退用户限制。逐项策略失败会记录日志，并继续使用普通管控。
+- 普通限时解锁只退出锁任务；家长明确暂停保护才撤销本模块的用户限制和卸载阻止。家长验证后的原桌面/设置使用临时授权，返回学习主页后恢复管控。
+- Android 9 不支持 `DISALLOW_CONFIG_DEFAULT_APPS`，不将其列为该版本的已生效能力；默认桌面通过持久化首选 Activity 设置。
+- 当前不默认挂起、禁用或隐藏视频和系统应用，不接入 Shizuku，不自动停用 ADB。恢复出厂限制不等于防止 Recovery 或刷机。
+- 项目 `minSdk 28` 只表示 Android 9 及以上的代码支持范围，不代表所有设备已兼容。Device Owner 强管控须按 ROM、账户/用户条件和实测结果分级。
+- 当前爱普生真机没有启用 Device Owner；为管控需要停用了第三方 Aerial 桌面，但未 Root、未卸载，保留了恢复方式。这不代表其他设备也需要相同处理。
 
 ## 10. 构建与验证
 

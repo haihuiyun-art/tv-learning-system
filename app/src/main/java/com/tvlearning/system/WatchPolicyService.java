@@ -29,6 +29,7 @@ public class WatchPolicyService extends Service {
     private PolicyStore store;
     private PolicyEngine engine;
     private AppRepository apps;
+    private DeviceControlManager deviceControl;
     private LocalControlServer webServer;
     private String localAddress = "本地网页正在启动";
     private long lastLockLaunch;
@@ -53,6 +54,7 @@ public class WatchPolicyService extends Service {
         @Override
         public void run() {
             try {
+                deviceControl.syncProtection();
                 String foreground = screenOff ? "" : apps.getForegroundPackage();
                 engine.tick(foreground);
                 monitorTicks++;
@@ -63,7 +65,8 @@ public class WatchPolicyService extends Service {
                 if (!screenOff) {
                     long now = SystemClock.elapsedRealtime();
                     if (PolicyEngine.isLockedState(state.state)) {
-                        if (!getPackageName().equals(foreground) && now - lastLockLaunch >= 3000) {
+                        if (!getPackageName().equals(foreground) && !deviceControl.hasTemporaryAccess()
+                                && now - lastLockLaunch >= 3000) {
                             showLock();
                             lastLockLaunch = now;
                         }
@@ -100,6 +103,7 @@ public class WatchPolicyService extends Service {
         store = PolicyStore.get(this);
         engine = PolicyEngine.get(this);
         apps = new AppRepository(this);
+        deviceControl = DeviceControlManager.get(this);
         PowerManager power = (PowerManager) getSystemService(Context.POWER_SERVICE);
         screenOff = power != null && !power.isScreenOn();
         IntentFilter screenFilter = new IntentFilter();
