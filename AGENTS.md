@@ -95,9 +95,19 @@
 - 2026-11-12：用户告知设备上线，新地址为 `192.168.2.109:5555`（原 `.112` 记录不再作为当前地址）。已完成只读检查：设备指纹与此前爱普生验证机一致，Android 9、API 28、ARMv7，当前只有机主用户 0，无设备所有者或用户限制；有 `Aerial`（`app.orchard.tv`）账户，可能成为激活阻碍。`pm list features` 未声明 `android.software.device_admin`，但设备策略服务及 `dpm set-device-owner` 命令存在，尚不能据此判定是否可激活。升级前真机 APK 哈希为 `d287d32418412a76bbc78e304e1c11308dca893ed5e589c0e1c801d234756171`，与备份基线一致；新版哈希为 `6363bfbe22494a7ef0b521a02853a76583732519ba87893c911a195b0aa52a0c`，两 APK 的调试签名证书一致。
 - 同日经用户明确授权后，`adb install -r` 覆盖安装成功并显式启动学习主页；真机内新 APK 哈希与本地新版一致，网页 `configured=true`，原两项受管应用及待答题状态保留。随后实际执行一次 `dpm set-device-owner com.tvlearning.system/.DeviceOwnerReceiver`，系统仅返回 `RuntimeException: Can't set package ... as device owner`，日志未提供更具体原因。失败后设备所有者、锁任务和用户限制仍为空，原网页与基础管控界面正常。未删除账户、未恢复出厂、未启用强管控，也未改动真实规则、凭据或题库。后续核对 AOSP Pie 源码：`DevicePolicyManagerService.setDeviceOwner()` 在 `mHasFeature=false` 时直接返回 false，本机缺少该特性，且失败栈行号及泛化错误与该路径吻合；因此当前 ROM 不能通过删除 Aerial 账户补齐 Device Owner，不建议为此删除账户或恢复出厂。Aerial 公开实现表明，该本地账户用于同步框架唤醒桌面守护，`Account("Aerial", accountType)` 的密码为 null，认证服务不能登录，不是爱普生系统登录账户。真机后续网络不可达，未继续设备操作。
 
-仍不承诺防 Recovery 恢复出厂、刷机、绝对防绕过或全设备通用。覆盖安装后可能需要显式启动主页，不能视为自动升级已验收。USB 调试当前保留，是否关闭由家长在维护流程明确后决定。iOS Safari 有用户实际使用无异常反馈，但逐项兼容性验收未记录。
+仍不承诺防 Recovery 恢复出厂、刷机、绝对防绕过或全设备通用。当前版已在爱普生实测覆盖升级和重启后自动恢复，其他 ROM 仍需单独验收。USB 调试当前保留，是否关闭由家长在维护流程明确后决定。iOS Safari 有用户实际使用无异常反馈，但逐项兼容性验收未记录。
 - 2026-11-12 Root 可行性初查：已知识别信息为爱普生 CH-TW5700TX、内置模块 `EPSON/Askey sti6112d101`、Android 9、ARMv7。公开检索暂未发现该机型或模块的可信 Root、Bootloader 解锁或恢复固件方案；未发现不等于绝对不可 Root，但目前没有可安全实施的已知路径。不得在缺少芯片/启动引导信息、固件备份和可验证恢复方案时刷写、解锁或尝试一键 Root。设备再次上线后可先做只读硬件与启动信息检查，不主动重启进 Bootloader/Recovery。
 
 ## 验证要求
 
 必须执行标准构建与 Android Lint，并在真实视频 App、真实手机浏览器和真实重启/拔电场景中验收。测试结果、失败项和剩余限制当场更新到本文件。不得把未实测的设备能力记录为已支持。
+
+## AI 辅助部署（2026-11-13）
+
+- 当前可靠性增强、网页原桌面控制及真机验收记录已保存为本地 Git 提交 `5a4e1e0`，没有远程推送，不是正式发布版。
+- 新增 `AI_DEPLOYMENT.md`、`deploy/probe_device.py`、`deploy/ACCEPTANCE_AND_ROLLBACK.md`。流程为只读检测、候选分级、列明变更与回退、独立授权、安装、逐项真机验收和同 ROM 制品复用；不得自动 Root、恢复出厂、删账户、清数据、激活 Device Owner 或重启/拔电。
+- 检测脚本仅使用 Python 3 标准库和固定只读 ADB 查询，使用项目 `.tools` 的 adb 或 `--adb`。设备地址只由用户明确提供，不扫描网络；多设备时必须指定 `--serial`，不自动挑选。
+- 示例：`python deploy/probe_device.py --connect "USER_PROVIDED_IP:PORT" --output "deploy/reports/MODEL-probe.json"`。报告默认不覆盖，限制在项目内；`deploy/reports/` 和 Python 缓存已忽略，不上传真实凭据、题库或私有数据。
+- 本机实测生成 `deploy/reports/epson-sti6112d101-api28.json`：API 28、ARMv7、1080p/240dpi，基础候选为真，Device Owner 候选为假（缺少 `android.software.device_admin`），没有查询错误。检测前后 boot_count 均为 646、使用统计 allow、默认 HOME 不变，`watching/reward` 剩余 176 秒及真实规则不变；未执行安装、授权、重启或提权。
+- 已检查脚本语法、中文帮助、有效序列/自定义 adb、无设备/多设备选择、低版本拒绝、查询失败、Device Owner 候选与已有所有者拒绝、报告防覆盖和项目外路径拒绝。候选结论不等于本机功能验收；当前设备仍需完成厂商休眠及锁定/冷却真实拔电，其他设备按模板逐项实测。
+- 本轮未修改 Android 应用逻辑；交付前重新执行 `clean lintDebug assembleDebug` 通过，APK SHA-256 仍为 `cdc2a2b73dbcb9e10a7dcc6f86402a919701846cfe068a8d490ce45e12b6ca15`。真机报告保留在本地忽略目录，不提交 Git。

@@ -8,3 +8,5 @@ backups/
 *.jks
 .idea/
 .DS_Store
+__pycache__/
+deploy/reports/

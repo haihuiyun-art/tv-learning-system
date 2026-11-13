@@ -263,3 +263,16 @@ export GRADLE_USER_HOME="$TOOLS/gradle-home"
 标准输出 APK：`app/build/outputs/apk/debug/app-debug.apk`。
 
 项目当前没有自动化测试脚手架。验证采用模拟器回归、真实浏览器、真实视频应用及真机操作；各项实测结果和未验证限制记录在 `AGENTS.md`。
+
+## 11. AI 辅助部署
+
+部署流程由 `AI_DEPLOYMENT.md`、`deploy/probe_device.py` 和 `deploy/ACCEPTANCE_AND_ROLLBACK.md` 组成，目标是减少重复检测和试错，不是对所有设备无条件一键适配。
+
+1. 用户提供目标设备和明确授权后，AI 固定到同一 ADB 目标，先运行只读检测脚本。
+2. 脚本使用 Python 3 标准库和固定 ADB 查询，不提供任意命令入口；默认不扫描网络，多台设备时必须显式选择。`--connect` 只连接用户明确提供的地址。
+3. 报告包含系统/SDK/ABI、ROM 指纹、设备管理能力、用户摘要、HOME 候选、本应用安装状态、使用统计模式及显示信息。不包含 ADB/IP/硬件序列号、账户名称、凭据、题库或应用私有数据。
+4. 报告输出 `basic_candidate`、`device_owner_candidate`、`needs_review` 或 `unsupported`。它们只是部署候选级别；真实事件、遥控器、厂商语音、开机、休眠和断电必须另行实测。
+5. 报告可保存到项目内新的 JSON 文件，已有文件拒绝覆盖，项目外路径拒绝写入；`deploy/reports/` 不提交 Git。
+6. 安装、权限、默认 HOME、组件状态、Device Owner 和重启/拔电分别列出影响、原值、回退方法并单独授权。脚本本身不安装、不授权、不修改系统或激活 Device Owner。
+7. 只有相同 ROM、相同 APK/签名且已有对应验收记录时才复用固定制品。新 ROM 的源码适配须经过标准构建、模拟器及真机验收，不得通过降低功能或省略失败项伪装成功。
+8. 验收模板逐项保留通过、未通过、未测试和不适用；回退只使用本机保存的真实原值。卸载、清除数据或恢复出厂不是默认回退手段。
