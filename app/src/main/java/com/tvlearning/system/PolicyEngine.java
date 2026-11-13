@@ -58,6 +58,9 @@ final class PolicyEngine {
 
         if (restarted) {
             restoreAfterReboot(state, nowWall, definiteRestart);
+            store.addLog(definiteRestart
+                    ? "检测到设备重启，保护状态已恢复：" + state.state
+                    : "检测到计时基准变化，已重新同步保护状态");
             durable = true;
         }
 

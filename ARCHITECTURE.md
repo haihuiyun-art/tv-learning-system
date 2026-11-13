@@ -34,14 +34,16 @@ flowchart LR
     subgraph TV[Android 电视端]
         Home[HomeActivity\n学习主页 / 默认桌面]
         Lock[LockActivity\n答题与限制状态界面]
-        Service[WatchPolicyService\n前台监控服务]
+        Service[WatchPolicyService\n前台监控 / 恢复信息]
         Apps[AppRepository\n应用列表 / 图标 / 前台识别]
         Engine[PolicyEngine\n规则计算与状态转换]
         Store[PolicyStore\n规则、凭据与运行状态]
         Bank[QuestionBank\n多文件题库]
         Server[LocalControlServer\n局域网 HTTP / 会话 / CSRF]
         Hash[PasswordHasher\nPIN / 恢复码 / 随机会话]
-        Boot[BootReceiver\n开机恢复]
+        Boot[BootReceiver\n开机 / 解锁 / 更新恢复]
+        Health[ProtectionHealth\n统一健康检查]
+        Actions[SystemActions\n家长临时外部入口]
         Owner[DeviceOwnerReceiver\n设备管理回调]
         Control[DeviceControlManager\n可选强管控 / 普通模式回退]
     end
@@ -51,12 +53,16 @@ flowchart LR
     Server --> Store
     Server --> Bank
     Server --> Apps
+    Server --> Health
+    Server --> Actions
     Home --> Engine
+    Home --> Health
+    Home --> Actions
     Lock --> Engine
-    Home --> Apps
     Lock --> Apps
     Service --> Apps
     Service --> Engine
+    Service --> Health
     Engine --> Store
     Engine --> Bank
     Store --> Hash
@@ -65,24 +71,27 @@ flowchart LR
     Home --> Control
     Lock --> Control
     Service --> Control
+    Actions --> Control
 ```
 
 ## 4. 核心模块
 
 | 模块 | 当前职责 |
 | --- | --- |
-| `HomeActivity.java` | 学习主页、受管应用入口、设备能力展示、家长验证、恢复码展示、原系统桌面授权 |
+| `HomeActivity.java` | 学习主页、受管应用入口、健康异常提示、家长验证、恢复码展示 |
 | `LockActivity.java` | 答题、答案反馈、家长本地解锁，以及冷却、休息、晚间禁用、每日上限界面 |
-| `WatchPolicyService.java` | 前台服务、每秒监控、锁定界面恢复、未经授权桌面收回、屏幕开关广播、局域网服务托管 |
+| `WatchPolicyService.java` | 前台服务、每秒监控、锁定界面恢复、桌面收回、屏幕开关、网页托管、启动来源与有界恢复 |
+| `ProtectionHealth.java` | 汇总服务、权限、实际事件、默认桌面、受管应用与 Device Owner 状态，生成电视提示和网页 JSON |
+| `SystemActions.java` | 电视/网页共用的原桌面解析、临时外部授权和启动失败回滚 |
 | `DeviceControlManager.java` | Device Owner 检测、锁任务、默认桌面、防卸载、可回退用户限制、家长临时外部入口；失败时保留普通管控 |
 | `PolicyEngine.java` | 观看计时、状态转换、答题判断、家长控制、规则修改后的当前周期折算 |
 | `PolicyStore.java` | SharedPreferences 持久化、时间规则、应用开关、PIN/恢复码、初始化、日志 |
 | `QuestionBank.java` | 题库解析、校验、多文件合并抽题、旧版迁移、原子写入、损坏隔离与恢复 |
-| `AppRepository.java` | 查询可启动应用、读取名称、通过 PackageManager 加载并缓存官方图标、提供默认图标、UsageStats 前台事件、默认桌面检测 |
+| `AppRepository.java` | 查询可启动应用、加载并缓存官方图标、UsageStats 前台事件及诊断、默认桌面和实际受管应用检测 |
 | `LocalControlServer.java` | 家长网页与 API、认证会话、CSRF 校验、安全响应头、请求大小限制 |
 | `PasswordHasher.java` | 随机盐、PBKDF2 哈希、配对码、恢复码、会话和 CSRF 随机令牌 |
 | `Ui.java` | 浅色/深色主题及本地持久化、设备密度适配、按钮、输入框、焦点边框和公共界面样式 |
-| `BootReceiver.java` | 正常开机或厂商快速开机后启动前台服务 |
+| `BootReceiver.java` | 正常/快速开机、用户解锁和本应用覆盖升级后的服务恢复 |
 | `DeviceOwnerReceiver.java` | 设备管理启用、锁任务进入/退出回调及服务恢复；爱普生真机尚未启用 Device Owner |
 
 ## 5. 页面与交互范围
@@ -202,9 +211,9 @@ flowchart LR
 | 接口 | 用途 |
 | --- | --- |
 | `/api/bootstrap`、`/api/setup`、`/api/login`、`/api/logout` | 初始化、登录和退出 |
-| `/api/state` | 当前状态、规则、应用、题库摘要和日志 |
+| `/api/state` | 当前状态、规则、应用、题库摘要、健康检查和日志 |
 | `/api/policy` | 保存时间规则并折算当前周期 |
-| `/api/control` | 解锁、免答、跳题、暂停/恢复保护、应用启停 |
+| `/api/control` | 解锁、免答、跳题、暂停/恢复保护、应用启停、临时打开原桌面 |
 | `/api/questions` | 多文件列表和汇总 |
 | `/api/questions/bank` | 查看单份题库 |
 | `/api/questions/import` | 新增或同名更新题库 |
@@ -218,6 +227,7 @@ flowchart LR
 - 恢复码只在家长验证后展示，确认保存后删除待展示明文。
 - 网页会话只保存在设备内存中，使用 HttpOnly、SameSite=Strict Cookie，采用滑动 30 分钟有效期。
 - 写操作需要会话及 `X-CSRF-Token`。
+- 手机“打开原系统桌面”复用上述认证，不接收任意包名，不增加观看时间；返回学习主页后撤销临时授权，家长无需在电视旁输入 PIN。
 - 登录失败和电视端验证失败均有次数限制与临时阻断。
 - 返回 CSP、`X-Frame-Options: DENY`、`nosniff`、禁止缓存等响应头。
 - 当前为家庭局域网 HTTP，不是公网 HTTPS 服务，不应开放到公网或不可信网络。
@@ -225,8 +235,9 @@ flowchart LR
 ## 9. 启动、升级与设备适配
 
 - 首次安装或打开主页时启动前台服务和网页。
-- 开机广播恢复服务，持久化状态决定恢复观看、答题或等待界面。
-- 覆盖安装后可能需要显式打开一次主页，不能把当前流程当成已完成自动升级验收。
+- `BootReceiver` 接收正常/快速开机、用户解锁和本应用覆盖升级；开机/升级触发最多三次、间隔 0/5/20 秒的有界恢复检查，服务已运行则停止。`START_STICKY` 处理系统允许的服务重建，不承诺强制停止、厂商禁止自启动后也能恢复。
+- 新版覆盖升级已在 Android 9 模拟器和爱普生真机验证无需手动打开主页；其他 ROM 仍需单独验收。持久化状态决定恢复观看、答题或等待界面，重启检测和恢复写入日志。真机已验证正常重启后恢复同一待答题，真实拔电与厂商休眠另行记录。
+- `ProtectionHealth` 区分权限授权与真实前台事件，检查服务/网页心跳、默认桌面和实际可启动的受管应用；网页展示启动来源、运行时间和具体问题，电视在异常时提示。诊断结果不等于未来重启一定成功。
 - 默认桌面、使用统计权限和语音入口因厂商固件而异，应逐台检测。
 - 未启用 Device Owner 时，保留原有前台监控、答题和家长控制。Device Owner 只能通过 ADB 或官方配置流程授权，应用不能自行提权。
 - 已启用且保护开启时，`DeviceControlManager` 配置锁任务白名单、Home 键、持久化默认桌面、本应用防卸载及可回退用户限制。逐项策略失败会记录日志，并继续使用普通管控。
@@ -234,7 +245,7 @@ flowchart LR
 - Android 9 不支持 `DISALLOW_CONFIG_DEFAULT_APPS`，不将其列为该版本的已生效能力；默认桌面通过持久化首选 Activity 设置。
 - 当前不默认挂起、禁用或隐藏视频和系统应用，不接入 Shizuku，不自动停用 ADB。恢复出厂限制不等于防止 Recovery 或刷机。
 - 项目 `minSdk 28` 只表示 Android 9 及以上的代码支持范围，不代表所有设备已兼容。Device Owner 强管控须按 ROM、账户/用户条件和实测结果分级。
-- 当前爱普生真机没有启用 Device Owner；为管控需要停用了第三方 Aerial 桌面，但未 Root、未卸载，保留了恢复方式。这不代表其他设备也需要相同处理。
+- 当前爱普生真机未声明 `android.software.device_admin`，Device Owner 激活实测被拒绝，继续使用基础管控；为管控需要停用了第三方 Aerial 桌面，但未 Root、未卸载，保留了恢复方式。这不代表其他设备也需要相同处理。
 
 ## 10. 构建与验证
 

@@ -270,10 +270,30 @@
       $('q-total-count').textContent = String(s.questions.totalQuestionCount || 0);
     }
     $('st-address').textContent = s.address || '—';
+    renderHealth(s.health);
 
     if (s.policy && !policyDirty) fillPolicyForm(s.policy);
     if (Array.isArray(s.apps)) renderApps(s.apps);
     if (Array.isArray(s.logs)) renderLogs(s.logs);
+  }
+
+  function renderHealth(h) {
+    if (!h || typeof h !== 'object') return;
+    $('st-health-summary').textContent = h.summary || '无法取得健康状态';
+    var box = $('st-health');
+    box.classList.remove('health-ok', 'health-warning', 'health-error', 'health-setup', 'health-paused');
+    var levels = ['ok', 'warning', 'error', 'setup', 'paused'];
+    if (levels.indexOf(h.level) >= 0) box.classList.add('health-' + h.level);
+    var issues = $('st-health-issues');
+    clearChildren(issues);
+    if (Array.isArray(h.issues)) {
+      h.issues.forEach(function (issue) {
+        if (typeof issue === 'string' && issue) issues.appendChild(el('li', null, issue));
+      });
+    }
+    $('st-control-mode').textContent = h.controlMode || '—';
+    $('st-start-reason').textContent = h.startReasonText || '—';
+    $('st-uptime').textContent = fmtSeconds(h.serviceUptimeSeconds);
   }
 
   function stateText(state) {
@@ -397,6 +417,7 @@
     unlock: '直接解锁',
     skip_question: '跳过当前题目',
     grant_without_answer: '免答奖励',
+    open_original_home: '打开原系统桌面',
     pause_protection: '暂停保护',
     resume_protection: '恢复保护'
   };
@@ -418,7 +439,10 @@
       btn.disabled = true;
       api('POST', '/api/control', body)
         .then(function () {
-          setMsg(msgEl, (ACTION_NAMES[action] || action) + '：操作成功', false);
+          var message = action === 'open_original_home'
+            ? '已请求打开原桌面；返回学习主页后恢复管控'
+            : (ACTION_NAMES[action] || action) + '：操作成功';
+          setMsg(msgEl, message, false);
           return refreshState();
         })
         .catch(function (err) {

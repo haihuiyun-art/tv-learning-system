@@ -151,6 +151,11 @@ final class LocalControlServer extends NanoHTTPD {
             String action = request.getString("action");
             if ("set_app_enabled".equals(action)) {
                 store.setAppEnabled(request.getString("packageName"), request.getBoolean("enabled"));
+            } else if ("open_original_home".equals(action)) {
+                String failure = new SystemActions(context).openOriginalHome(true);
+                if (failure != null) {
+                    return json(Response.Status.CONFLICT, error("action_unavailable", failure));
+                }
             } else {
                 engine.control(request);
             }
@@ -202,6 +207,7 @@ final class LocalControlServer extends NanoHTTPD {
                 .put("policy", store.getPolicy().toJson())
                 .put("apps", apps.toJson())
                 .put("questions", questions.summaryJson())
+                .put("health", WatchPolicyService.getHealth(context).toJson())
                 .put("address", WatchPolicyService.getAddress())
                 .put("logs", logs);
     }

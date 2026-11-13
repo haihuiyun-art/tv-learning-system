@@ -200,6 +200,20 @@ textarea {
 .panel.active { display: block; }
 
 /* 状态列表 */
+.health-box {
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f5f5f5;
+}
+
+.health-ok { background: #e8f5e9; color: var(--ok); }
+.health-warning, .health-setup, .health-paused { background: #fff8e1; color: #795700; }
+.health-error { background: #ffebee; color: var(--error); }
+.health-issues { margin: 6px 0 0; padding-left: 20px; font-size: 0.85rem; }
+.health-issues:empty { display: none; }
+
 .stat-list {
   margin: 0;
   display: grid;

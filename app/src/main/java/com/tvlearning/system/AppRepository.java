@@ -65,6 +65,23 @@ final class AppRepository {
         return result;
     }
 
+    int countEnabledLaunchableApps() {
+        Set<String> packages = new HashSet<>();
+        collectLaunchablePackages(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), packages);
+        collectLaunchablePackages(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER), packages);
+        packages.retainAll(PolicyStore.get(context).getEnabledApps());
+        return packages.size();
+    }
+
+    private void collectLaunchablePackages(Intent intent, Set<String> packages) {
+        for (ResolveInfo info : packageManager.queryIntentActivities(intent, 0)) {
+            if (info.activityInfo != null
+                    && !context.getPackageName().equals(info.activityInfo.packageName)) {
+                packages.add(info.activityInfo.packageName);
+            }
+        }
+    }
+
     private void collectApps(Intent intent, Set<String> enabled, Map<String, AppItem> apps) {
         List<ResolveInfo> resolved = packageManager.queryIntentActivities(intent, 0);
         for (ResolveInfo info : resolved) {
@@ -190,6 +207,10 @@ final class AppRepository {
             foregroundPackage = "";
             return "";
         }
+    }
+
+    synchronized boolean hasReceivedUsageEvents() {
+        return usageEventSeen;
     }
 
     boolean isHomePackage(String packageName) {

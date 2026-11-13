@@ -2,10 +2,8 @@ package com.tvlearning.system;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ResolveInfo;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -438,13 +436,10 @@ public class HomeActivity extends Activity {
     private void updateStatus() {
         PolicyStore store = PolicyStore.get(this);
         PolicyStore.RuntimeState state = store.getRuntime();
-        boolean owner = deviceControl.isOwner();
-        boolean ownerReady = deviceControl.isProtectionPolicyActive();
-        boolean usageGranted = apps.hasUsageAccess();
-        boolean defaultHome = isDefaultHome();
-        String usage = usageGranted ? "已授权" : "未授权";
-        String home = defaultHome ? "是" : "否";
-        protectionBadge.setText(store.isProtectionEnabled() ? "● 保护中" : "已暂停");
+        ProtectionHealth.Snapshot health = WatchPolicyService.getHealth(this);
+        protectionBadge.setText(!store.isConfigured() ? "待初始化"
+                : !store.isProtectionEnabled() ? "已暂停"
+                : health.isHealthy() ? "● 保护中" : "● 需检查");
         heroTitle.setText(heroText(state.state));
         timeCaption.setText(timeCaption(state.state));
         if (PolicyStore.WATCHING.equals(state.state)) {
@@ -457,11 +452,10 @@ public class HomeActivity extends Activity {
             timeValue.setText("00:00");
         }
         status.setText(String.format(Locale.getDefault(),
-                "Android %s（API %d） · 观看统计：%s · 默认桌面：%s · 管控模式：%s · 当前状态：%s",
+                "Android %s（API %d） · 管控模式：%s · 当前状态：%s\n%s",
                 android.os.Build.VERSION.RELEASE, android.os.Build.VERSION.SDK_INT,
-                usage, home, deviceControl.modeText(), stateText(state.state)));
-        status.setVisibility(usageGranted && defaultHome && (!owner || ownerReady)
-                ? View.GONE : View.VISIBLE);
+                health.controlMode, stateText(state.state), health.displayText()));
+        status.setVisibility(health.isHealthy() ? View.GONE : View.VISIBLE);
         connection.setText("手机网页 " + WatchPolicyService.getAddress());
         pairing.setVisibility(store.isConfigured() ? View.GONE : View.VISIBLE);
         if (!store.isConfigured()) {
@@ -566,47 +560,14 @@ public class HomeActivity extends Activity {
     }
 
     private void openOriginalHome() {
-        Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
-        List<ResolveInfo> homes = getPackageManager().queryIntentActivities(query, 0);
-        ResolveInfo selected = null;
-        for (ResolveInfo item : homes) {
-            if (item.activityInfo != null && !getPackageName().equals(item.activityInfo.packageName)) {
-                if ("com.ktcp.launcher".equals(item.activityInfo.packageName)) {
-                    selected = item;
-                    break;
-                }
-                if (selected == null) {
-                    selected = item;
-                }
-            }
+        String failure = new SystemActions(this).openOriginalHome(false);
+        if (failure != null) {
+            Toast.makeText(this, failure, Toast.LENGTH_LONG).show();
         }
-        if (selected == null) {
-            Toast.makeText(this, "未找到原系统桌面", Toast.LENGTH_LONG).show();
-            return;
-        }
-        Intent intent = new Intent(Intent.ACTION_MAIN);
-        intent.addCategory(Intent.CATEGORY_HOME);
-        intent.setComponent(new ComponentName(selected.activityInfo.packageName, selected.activityInfo.name));
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        openTemporaryExternal(intent, "原桌面暂时无法打开");
     }
 
     private void openTemporaryExternal(Intent intent, String errorMessage) {
-        ComponentName target = intent.getComponent();
-        if (target == null) {
-            target = intent.resolveActivity(getPackageManager());
-        }
-        if (target == null || !deviceControl.allowTemporaryPackage(target.getPackageName())) {
-            Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
-            return;
-        }
-        PolicyEngine.get(this).allowOriginalHome(target.getPackageName());
-        try {
-            startActivity(intent);
-        } catch (RuntimeException e) {
-            PolicyEngine.get(this).clearOriginalHomeAccess();
-            deviceControl.clearTemporaryAccess();
-            deviceControl.syncProtection();
+        if (!new SystemActions(this).openTemporaryExternal(intent)) {
             Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
         }
     }

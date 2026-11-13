@@ -23,9 +23,13 @@ import java.util.Enumeration;
 
 public class WatchPolicyService extends Service {
     private static final int PORT = 8787;
-    private static WatchPolicyService instance;
+    private static final long[] RECOVERY_DELAYS_MS = {0L, 5000L, 20000L};
+    private static volatile WatchPolicyService instance;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private volatile long lastMonitorMs;
+    private volatile long startedAtMs;
+    private volatile String startReason = "activity";
     private PolicyStore store;
     private PolicyEngine engine;
     private AppRepository apps;
@@ -77,13 +81,20 @@ public class WatchPolicyService extends Service {
                 }
             } catch (RuntimeException e) {
                 store.addLog("管控循环异常：" + e.getClass().getSimpleName());
+            } finally {
+                lastMonitorMs = SystemClock.elapsedRealtime();
             }
             handler.postDelayed(this, 1000);
         }
     };
 
     static void start(Context context) {
+        start(context, "activity");
+    }
+
+    private static void start(Context context, String reason) {
         Intent intent = new Intent(context, WatchPolicyService.class);
+        intent.putExtra("start_reason", reason);
         try {
             context.startForegroundService(intent);
         } catch (RuntimeException e) {
@@ -91,8 +102,41 @@ public class WatchPolicyService extends Service {
         }
     }
 
+    static void recover(Context context, final String reason) {
+        final Context appContext = context.getApplicationContext();
+        final Handler recoveryHandler = new Handler(Looper.getMainLooper());
+        final Runnable recovery = new Runnable() {
+            int attempt;
+
+            @Override
+            public void run() {
+                if (instance != null) {
+                    return;
+                }
+                if (attempt >= RECOVERY_DELAYS_MS.length) {
+                    PolicyStore.get(appContext).addLog("服务自动恢复未成功，请打开学习主页检查");
+                    return;
+                }
+                start(appContext, reason);
+                recoveryHandler.postDelayed(this, RECOVERY_DELAYS_MS[attempt]);
+                attempt++;
+            }
+        };
+        recovery.run();
+    }
+
     static String getAddress() {
         return instance == null ? "本地管控服务未运行" : instance.localAddress;
+    }
+
+    static ProtectionHealth.Snapshot getHealth(Context context) {
+        WatchPolicyService service = instance;
+        if (service != null) {
+            return service.healthSnapshot();
+        }
+        return ProtectionHealth.evaluate(context, new AppRepository(context),
+                DeviceControlManager.get(context), false, false, false,
+                0L, -1L, "stopped");
     }
 
     @Override
@@ -119,9 +163,28 @@ public class WatchPolicyService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        String reason = intent == null ? "system_restart" : intent.getStringExtra("start_reason");
+        if (startedAtMs == 0L) {
+            startReason = reason == null ? "activity" : reason;
+            startedAtMs = SystemClock.elapsedRealtime();
+            store.addLog("管控服务已启动（" + ProtectionHealth.startReasonText(startReason) + "）");
+        }
         handler.removeCallbacks(monitor);
         handler.post(monitor);
         return START_STICKY;
+    }
+
+    private ProtectionHealth.Snapshot healthSnapshot() {
+        long now = SystemClock.elapsedRealtime();
+        long monitorAge = lastMonitorMs == 0L ? -1L
+                : Math.max(0L, (now - lastMonitorMs) / 1000L);
+        long uptime = startedAtMs == 0L ? 0L : Math.max(0L, (now - startedAtMs) / 1000L);
+        boolean monitorAlive = lastMonitorMs > 0L && now - lastMonitorMs <= 5000L;
+        if (startedAtMs > 0L && now - startedAtMs < 5000L) {
+            monitorAlive = true;
+        }
+        return ProtectionHealth.evaluate(this, apps, deviceControl, true, monitorAlive,
+                webServer != null, uptime, monitorAge, startReason);
     }
 
     private void startForegroundNotification() {

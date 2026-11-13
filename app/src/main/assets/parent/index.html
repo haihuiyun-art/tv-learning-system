@@ -70,6 +70,10 @@
   <div class="panel active" id="panel-status">
     <div class="card">
       <h2>状态总览</h2>
+      <div id="st-health" class="health-box">
+        <strong id="st-health-summary">正在检查</strong>
+        <ul id="st-health-issues" class="health-issues"></ul>
+      </div>
       <dl class="stat-list">
         <div class="stat"><dt>当前状态</dt><dd id="st-state">—</dd></div>
         <div class="stat"><dt>保护功能</dt><dd id="st-protection">—</dd></div>
@@ -78,6 +82,9 @@
         <div class="stat"><dt>今日已用</dt><dd id="st-daily">—</dd></div>
         <div class="stat"><dt>题库</dt><dd id="st-questions">—</dd></div>
         <div class="stat"><dt>管理地址</dt><dd id="st-address" class="mono">—</dd></div>
+        <div class="stat"><dt>管控模式</dt><dd id="st-control-mode">—</dd></div>
+        <div class="stat"><dt>本次启动来源</dt><dd id="st-start-reason">—</dd></div>
+        <div class="stat"><dt>服务运行时间</dt><dd id="st-uptime">—</dd></div>
       </dl>
       <p class="hint">每 5 秒自动刷新。</p>
     </div>
@@ -159,6 +166,11 @@
         <h3>答题相关</h3>
         <button type="button" class="btn" data-action="skip_question">跳过当前题目</button>
         <button type="button" class="btn" data-action="grant_without_answer">免答奖励一次时长</button>
+      </div>
+      <div class="control-group">
+        <h3>系统入口</h3>
+        <button type="button" class="btn" data-action="open_original_home">打开原系统桌面</button>
+        <p class="hint">通过已登录的手机授权，无需在电视旁输入 PIN。不增加观看时长，也不清除当前题目；返回学习主页后恢复管控。</p>
       </div>
       <div class="control-group">
         <h3>保护开关</h3>
