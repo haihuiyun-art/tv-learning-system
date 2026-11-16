@@ -320,9 +320,10 @@ public class HomeActivity extends Activity {
         }
         int columns = columnsFor(enabledItems.size(), availableWidth);
         int gap = Ui.dp(this, 16);
-        int cardWidth = Math.min(Ui.dp(this, 380),
-                (availableWidth - (columns - 1) * gap) / columns);
-        cardWidth = Math.max(Math.min(availableWidth, Ui.dp(this, 240)), cardWidth);
+        int cardWidth = (availableWidth - (columns - 1) * gap) / columns;
+        if (enabledItems.size() == 1) {
+            cardWidth = Math.min(cardWidth, Ui.dp(this, 380));
+        }
         int rowWidth = cardWidth * columns + (columns - 1) * gap;
         LinearLayout row = null;
         for (int i = 0; i < enabledItems.size(); i++) {
@@ -426,11 +427,10 @@ public class HomeActivity extends Activity {
         if (count <= 1) {
             return 1;
         }
-        int maxByWidth = Math.max(1, availableWidth / Ui.dp(this, 240));
-        if (count == 4) {
-            return Math.min(2, maxByWidth);
-        }
-        return Math.min(count, Math.min(3, maxByWidth));
+        int gap = Ui.dp(this, 16);
+        int minimumCardWidth = Ui.dp(this, 120);
+        int maxByWidth = Math.max(1, (availableWidth + gap) / (minimumCardWidth + gap));
+        return Math.min(count, Math.min(6, maxByWidth));
     }
 
     private void updateStatus() {
