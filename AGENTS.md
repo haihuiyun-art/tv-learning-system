@@ -112,3 +112,11 @@
 - 本机实测生成 `deploy/reports/epson-sti6112d101-api28.json`：API 28、ARMv7、1080p/240dpi，基础候选为真，Device Owner 候选为假（缺少 `android.software.device_admin`），没有查询错误。检测前后 boot_count 均为 646、使用统计 allow、默认 HOME 不变，`watching/reward` 剩余 176 秒及真实规则不变；未执行安装、授权、重启或提权。
 - 已检查脚本语法、中文帮助、有效序列/自定义 adb、无设备/多设备选择、低版本拒绝、查询失败、Device Owner 候选与已有所有者拒绝、报告防覆盖和项目外路径拒绝。候选结论不等于本机功能验收；当前设备仍需完成厂商休眠及锁定/冷却真实拔电，其他设备按模板逐项实测。
 - 本轮未修改 Android 应用逻辑；交付前重新执行 `clean lintDebug assembleDebug` 通过，APK SHA-256 仍为 `cdc2a2b73dbcb9e10a7dcc6f86402a919701846cfe068a8d490ce45e12b6ca15`。真机报告保留在本地忽略目录，不提交 Git。
+
+## 开源发布（2026-11-17）
+
+- 功能基线保持为 `94f2c83`，开源文档与许可证节点为 `24d642c`。新增 `README.md`、MIT `LICENSE`、`SECURITY.md`、`THIRD_PARTY_NOTICES.md` 和 `docs/QUESTION_BANK.md`，明确自有代码全部由 AI 生成、功能、L0～L2 自定义管控分级、不足和 AI 部署方法；同步修正架构中的 6 列布局和公开环境的构建说明。
+- 公开前检查未发现硬编码私钥、GitHub 令牌或 PIN；当前文档中的真实局域网地址和开发者专用绝对路径已泛化。`.tools/`、APK、备份、设备报告和 `安装提示词.txt` 均未纳入发布提交。
+- 文档链接、题库 JSON、检测脚本语法及 `clean lintDebug assembleDebug` 均通过；APK SHA-256 仍为 `53867d614f8941cd6dd7ea6b107d469349975d8e344ea4eb024102e13c879bec`。
+- GitHub 公开仓库已创建并推送 `master`：<https://github.com/haihuiyun-art/tv-learning-system>。
+- Gitee 目标仓库为 <https://gitee.com/wo1228/tv-learning-system>。官方新建/导入页面的自动提交未成功，POST 后返回 404，API 无独立访问令牌返回 401，目标仓库尚未创建；浏览器中已保留填写为“公开、无初始化文件”的新建页面，待用户手动点击创建后再推送，当前不得宣称 Gitee 发布完成。
