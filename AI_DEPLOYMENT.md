@@ -8,16 +8,26 @@
 
 ## 一、先读文档并核对事实
 
+用户可直接向 AI 发送以下指令；AI 仍须先确认目标与只读授权，不得把这段话扩大为自动安装或提权许可：
+
+```text
+请阅读当前项目根目录的 AI_DEPLOYMENT.md，并严格按该文件执行。
+目前我只授权只读检测，不授权安装、权限变更、默认桌面修改、组件启停、Device Owner、重启或拔电。
+目标 ADB 地址为：<填写我明确提供的设备 IP:端口>。
+请先生成能力报告，列出拟变更、影响、原值和回退方法；任何变更都必须再单独征求我的授权。
+不要 Root、刷机、恢复出厂、清数据或删除账户，也不要索取我的 PIN、恢复码、配对码或网页令牌。
+```
+
 开始检测或修改前，必须阅读：
 
 1. 项目根目录 `AGENTS.md`：当前状态、已验证范围、失败记录、设备限制和项目约定。
 2. `ARCHITECTURE.md`：实际架构、状态机、网页安全、升级恢复及 Device Owner 边界。
 3. `app/build.gradle`：包名、SDK、语言级别和依赖。
 4. `deploy/ACCEPTANCE_AND_ROLLBACK.md`：每型号验收与回滚模板。
-5. 若存在且当前环境允许读取，阅读用户级 `C:\Users\LC\.kimi-code\通用工程踩坑手册.md`。
+5. 若当前环境存在且用户明确提供其所在组织或个人的工程踩坑手册，也应阅读；不得假设其他开发者机器上存在特定绝对路径。
 6. 同型号、同 ROM 的既有探测报告、验收记录和 APK 制品记录；旧记录只能作为复用依据或历史证据，不能冒充本次实测。
 
-当前源码事实应至少核对为：原生 Android/Java，Java 8 语言级别，包名 `com.tvlearning.system`，`minSdk 28`，`targetSdk/compileSdk 35`，Gradle 8.9、AGP 8.7.3、JDK 17，NanoHTTPD 2.3.1。项目工具链位于 `.tools/`，不要修改系统 PATH。`minSdk 28` 只是代码兼容下限，不表示所有 Android 9 及以上设备均已适配。
+当前源码事实应至少核对为：原生 Android/Java，Java 8 语言级别，包名 `com.tvlearning.system`，`minSdk 28`，`targetSdk/compileSdk 35`，Gradle 8.9、AGP 8.7.3、JDK 17，NanoHTTPD 2.3.1。优先使用系统已配置的 JDK 17、Android SDK 和 ADB；项目目录存在 `.tools/` 时可复用其中的工具链，但公开仓库不包含该目录，不得假设它一定存在，也不要求为了适配而重复安装整套环境。`minSdk 28` 只是代码兼容下限，不表示所有 Android 9 及以上设备均已适配。
 
 ## 二、不可逾越的安全与隐私边界
 
@@ -96,7 +106,17 @@ Git Bash 会对部分设备绝对路径做 MSYS 路径转换。若一条已经�
 
 ## 六、第四步：构建、核对制品，再按授权安装
 
-使用项目内工具链，在 Git Bash 的项目根目录执行标准构建和 Android Lint：
+确认系统已配置 JDK 17、`JAVA_HOME`、Android SDK Platform 35 和 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，在项目根目录执行标准构建和 Android Lint：
+
+```bash
+# Windows / Git Bash
+./gradlew.bat clean lintDebug assembleDebug --console=plain
+
+# macOS / Linux 使用：./gradlew clean lintDebug assembleDebug --console=plain
+sha256sum app/build/outputs/apk/debug/app-debug.apk
+```
+
+如果项目目录已有 `.tools/`，Windows / Git Bash 可复用其中的工具链；公开仓库不包含这些本机文件：
 
 ```bash
 TOOLS="$PWD/.tools"
