@@ -118,5 +118,5 @@
 - 功能基线保持为 `94f2c83`，开源文档与许可证节点为 `24d642c`。新增 `README.md`、MIT `LICENSE`、`SECURITY.md`、`THIRD_PARTY_NOTICES.md` 和 `docs/QUESTION_BANK.md`，明确自有代码全部由 AI 生成、功能、L0～L2 自定义管控分级、不足和 AI 部署方法；同步修正架构中的 6 列布局和公开环境的构建说明。
 - 公开前检查未发现硬编码私钥、GitHub 令牌或 PIN；当前文档中的真实局域网地址和开发者专用绝对路径已泛化。`.tools/`、APK、备份、设备报告和 `安装提示词.txt` 均未纳入发布提交。
 - 文档链接、题库 JSON、检测脚本语法及 `clean lintDebug assembleDebug` 均通过；APK SHA-256 仍为 `53867d614f8941cd6dd7ea6b107d469349975d8e344ea4eb024102e13c879bec`。
-- GitHub 公开仓库已创建并推送 `master`：<https://github.com/haihuiyun-art/tv-learning-system>。
-- Gitee 目标仓库为 <https://gitee.com/wo1228/tv-learning-system>。官方新建/导入页面的自动提交未成功，POST 后返回 404，API 无独立访问令牌返回 401，目标仓库尚未创建；浏览器中已保留填写为“公开、无初始化文件”的新建页面，待用户手动点击创建后再推送，当前不得宣称 Gitee 发布完成。
+- GitHub 公开仓库已创建并推送 `master` 至 `3c47033`：<https://github.com/haihuiyun-art/tv-learning-system>。
+- Gitee 公开仓库已由用户手动创建：<https://gitee.com/wo1228/tv-learning-system>。首次凭据验证失败后，由用户在 Git Credential Manager 中重新完成登录，未向 AI 提供凭据；随后推送成功。Gitee API 实测 `private=false`、`public=true`、默认分支为 `master`，GitHub 与 Gitee 的 `master` 首次同步均为完整提交 `3c470333892fffbf795d16067f53a4e5bc676b5c`。本发布记录提交后继续同步双远程。
